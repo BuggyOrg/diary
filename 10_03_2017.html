@@ -328,7 +328,7 @@ reducing the size of the output.</p>
 <p><strong>Constructors</strong></p>
 <p>For a type like the list type the <em>Typesystem</em> tool will generate a function that
 creates the type itself. For the following list type:</p>
-<pre class="hljs"><code><div>(<span class="hljs-name"><span class="hljs-builtin-name">deftype</span></span> Pair (<span class="hljs-name">StringPair</span> String String))
+<pre class="hljs"><code><div>(<span class="hljs-name"><span class="hljs-builtin-name">deftype</span></span> Pair [(<span class="hljs-name">StringPair</span> String String) (<span class="hljs-name">IntPair</span> Number Number)])
 </div></code></pre>
 <p>it will create a function <code>StringPair: String x String → StringPair ⊑ Pair</code>.
 You can use it simply in Lisgy</p>
@@ -345,11 +345,19 @@ yield <code>&quot;Hello&quot;</code>:</p>
 <p><strong>Enable pattern matching</strong></p>
 <p>To eliminate the need for the <code>de-</code> names to extract values in types a
 pattern matching scheme would be added that could transform expressions like:</p>
-<pre class="hljs"><code><div>(<span class="hljs-name">match</span> sp (<span class="hljs-name">StringPair</span> a b) (<span class="hljs-name"><span class="hljs-builtin-name">concat</span></span> a b))
+<pre class="hljs"><code><div>(<span class="hljs-name">match</span> sp [
+  (<span class="hljs-name">StringPair</span> a b) (<span class="hljs-name"><span class="hljs-builtin-name">concat</span></span> a b)
+  (<span class="hljs-name">IntPair</span> a b) (<span class="hljs-name">numToStr</span> (<span class="hljs-name">math/add</span> a b))
+  ])
 </div></code></pre>
 <p>into:</p>
-<pre class="hljs"><code><div>(<span class="hljs-name"><span class="hljs-builtin-name">let</span></span> [a (<span class="hljs-name">de-StringPair-0</span> sp)
-      b (<span class="hljs-name">de-StringPair-1</span> sp)])
+<pre class="hljs"><code><div>(<span class="hljs-name"><span class="hljs-builtin-name">if</span></span> (<span class="hljs-name">isType</span> sp <span class="hljs-string">"StringPair"</span>)
+  (<span class="hljs-name"><span class="hljs-builtin-name">let</span></span> [a (<span class="hljs-name">de-StringPair-0</span> sp)
+       b (<span class="hljs-name">de-StringPair-1</span> sp)]
+       (<span class="hljs-name"><span class="hljs-builtin-name">concat</span></span> a b))
+  (<span class="hljs-name"><span class="hljs-builtin-name">let</span></span> [a (<span class="hljs-name">de-IntPair-0</span> sp)
+       b (<span class="hljs-name">de-IntPair-1</span> sp)]
+       (<span class="hljs-name">numToStr</span> (<span class="hljs-name">math/add</span> a b))))
 </div></code></pre>
 <p>It is unclear how much Lisgy help is necessary to implement this.</p>
 <p><strong>Recursive data structures</strong></p>
