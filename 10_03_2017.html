@@ -1,0 +1,438 @@
+<!doctype html><html><head><meta charset='utf-8'>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/2.4.1/github-markdown.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.9.0/styles/default.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.6.0/katex.min.css">
+<link rel="stylesheet" href="https://gitcdn.xyz/repo/goessner/mdmath/master/css/mdmath.css">
+</head><body class="markdown-body">
+<h1>Buggy Diary – March-01</h1>
+<p>This is the first entry of the Buggy Diary which will (hopefully) feature regular updates
+on the development of the <a href="https://github.com/BuggyOrg">Buggy System</a>. As the first entry it is
+rather lengthy. The next entries will probably be more concise.</p>
+<h1>Active development</h1>
+<p>This section will feature the active projects and what happened in the last iteration (~last month). And a short prospect on what is currently in the pipeline.</p>
+<h2>Graphtools</h2>
+<p>The basic graph implementation got several vital updates in the last iteration. The most recent version is 0.4.0-pre.28.</p>
+<hr>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>Short Description &amp; Progress</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>debugging</td>
+<td>Regarding the debugging possibilities, a new function <code>debug</code> is exported since <a href="https://github.com/BuggyOrg/graphtools/releases/tag/v0.4.0-pre.27">0.4.0-pre.27</a>. Furthermore safe guards were inserted in multiple functions to prevent strange <code>'path' undefined</code> problems when an input was not set correctly.</td>
+</tr>
+<tr>
+<td>Graph API</td>
+<td>The function <code>replacePort</code> was ported from the <code>rewrite</code> module into graphtools and is part of the API since <a href="https://github.com/BuggyOrg/graphtools/releases/tag/v0.4.0-pre.27">0.4.0-pre.27</a>. A new function is <code>Graph.isomorph</code> which checks if two graphs have the same structure.</td>
+</tr>
+<tr>
+<td>Flow API</td>
+<td>The <code>namedFlow</code> function was deprecated and the old method of handling context information in a flow function was changed to a more Haskell-let like method.</td>
+</tr>
+<tr>
+<td>Basic Rewriting</td>
+<td>A set of functions for rewriting was added, that allow easier handling of compounds and lambda functions.</td>
+</tr>
+<tr>
+<td>Algorithm</td>
+<td>A function for computing the <a href="https://en.wikipedia.org/wiki/Lowest_common_ancestor">lowest common ancestor (LCA)</a> was added. The topological sorting can now print the graph layer in which a loop was found as a debbugging possibility.</td>
+</tr>
+<tr>
+<td>Connections</td>
+<td>Methods for successors and predecessors now have an option for handling compound nodes.</td>
+</tr>
+<tr>
+<td>Documentation</td>
+<td>A few functions like addNode and similar got a more precise documentation and some examples to easily see how it should be used.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3>Debugging</h3>
+<p>A bunch of methods now check if their input graph is valid (i.e. an okay object). This prevents
+a handful of problems while debugging. You should get more understandable error messages
+out of graphtools now. If not, please file an issue and/or create a in graphtools test that asserts an understandable error message. Feel free to fix it, there is a method <code>assertGraph</code> in <code>src/assert.js</code> that tries to find the name of the caller, gets the position of the argument and checks the given graph. This could and should be extended to more than graphs.</p>
+<p>A newly exported method is the <code>Graph.debug</code> method that prints the graph if the <code>DEBUG</code> environment variable is set to <code>debug-graph</code> (see <a href="https://www.npmjs.com/package/debug">npm-debug</a> for detailed information on how this works). The program <code>debug-graphs</code> in the buggy-meta project scans the stderr output and opens for every graph output a new tab in your browser (be cautious to not open too many tabs). This is definitely improvable but helps a lot to visualize graphs on the fly. The command line for doing so could look like this:</p>
+<pre class="hljs"><code><div>DEBUG=debug-graph npm test 2&gt;&amp;1 | debug-graphs
+</div></code></pre>
+<p>The new update of VSCode merged the debugger <code>node2</code> into the <code>node</code> debugger. Automatic detection does not seem to work for us. To make it work you also have to set the <code>protocol</code> to <code>&quot;inspector&quot;</code> in the <code>launch.json</code> like this:</p>
+<pre class="hljs"><code><div>  <span class="hljs-string">"type"</span>: <span class="hljs-string">"node"</span>,
+  <span class="hljs-string">"protocol"</span>: <span class="hljs-string">"inspector"</span>,
+</div></code></pre>
+<h3>Graph API</h3>
+<p>A few minor changes were introduced to the basic graph API (excluding changes to <code>.flow</code> which are detailed below).</p>
+<p><strong>replacePort</strong></p>
+<p>The function <code>replacePort</code> was added to the GraphAPI. It takes only the port which you want to change, the new port and the graph. It is not necessary to specify the node of the port as the node is (should) always be part of the port itself. Please keep this in mind when designing functions that somehow work with ports. You can always get the node of the port via <code>Graph.node(port, graph)</code>. Do not ask for the port and the node in an API function.</p>
+<p><strong>edges and edgesDeep</strong></p>
+<p>Another important change is the clear distinction between <code>edges</code> and <code>edgesDeep</code>. Before this change <code>edges</code> returned all edges on all layers. Now the <code>edges</code> method only returns the edges of the current (compound) node, whereas <code>edgesDeep</code> will return all edges below the given compound node. This change is in the API since <a href="https://github.com/BuggyOrg/graphtools/releases/tag/v0.4.0-pre.22">0.4.0-pre.22</a> make sure to update your code for that.</p>
+<p><strong>isomorphy</strong></p>
+<p>A new function since <a href="https://github.com/BuggyOrg/graphtools/releases/tag/v0.4.0-pre.21">0.4.0-pre.21</a> is <code>Graph.isomorph</code> which checks if two graphs are isomorph, i.e. they encode the exact same structure. This includes all nodes with their componentIDs (and in the future their parameters) but not IDs, all edges and all defined components. <strong>With one key restriction</strong>. They must do something inside the graph. Floating nodes/subgraphs are ignored (a floating nodes/subgraphs are not connected to the rest of the graph). This means, that a graph with only one unconnected <code>math/add</code> node is isomorph to a graph that has a single unconnected <code>math/const</code> node. Those nodes are ignored. The isomorphy does not care for modifications that do nothing to the semantics of the graph. This introduced some problems with the current <em>Rewrite</em> tests as those have no connecting edges to the root node, i.e. they all had only floating nodes. This meant, that graphs were always isomorph. Those cases will never occur in real world examples and are easily fixable by connecting the output to the output of the root node (isomorphy does not care for nodes that are connected to the output)</p>
+<h3>Flow API</h3>
+<p>The function <code>namedFlow</code> was used to get better debugging information on flow functions and which function was executed. There were some issues with interleaving the names and functions. The new way of defining descriptions and a name for the flow is by adding an descriptor object as the last parameter to flow. This can include a name for the flow function and separate names for every function.</p>
+<pre class="hljs"><code><div>Graph.flow(
+  Graph.addNode({...}),
+  Graph.addEdge({...}),
+  {<span class="hljs-attr">name</span>: <span class="hljs-string">'Do stuff'</span>, <span class="hljs-attr">names</span>: [<span class="hljs-string">'Adding a node'</span>, <span class="hljs-string">'Adding an edge'</span>]}
+)()
+</div></code></pre>
+<p>The major API change occurred in <a href="https://github.com/BuggyOrg/graphtools/releases/tag/v0.4.0-pre.24">0.4.0-pre.24</a> where the old clunky mechanism for handling results of previous <em>graph actions</em> (fancy name for a function that takes a graph and returns a graph <code>Graph → Graph</code>) was handled in a special callback function with strange implications that no one could ever really understand ;). The new way of handling context information is based on Haskells do notation where they use let to process extra information. Sadly JS does not support an fancy syntax like Haskell so we have to use callbacks. But this time with more structure then before. The new let syntax looks like this:</p>
+<pre class="hljs"><code><div>Graph.flow(
+  Graph.Let(
+    Graph.addNode({...}),
+    (newNnode, graph) =&gt; {
+      <span class="hljs-built_in">console</span>.log(newNode)
+      <span class="hljs-keyword">return</span> graph
+    }
+  ),
+  ...
+)
+<span class="hljs-comment">// for multiple context calls</span>
+Graph.flow(
+  Graph.Let(
+    [
+      Graph.addNode({...}),
+      Graph.addNode({...})
+    ],
+    ([node1, node2], graph) =&gt; {
+      <span class="hljs-built_in">console</span>.log(node1, node2)
+      <span class="hljs-keyword">return</span> Graph.removeNode(node2, graph)
+    }
+  ),
+  ...
+)
+</div></code></pre>
+<p>Note that the <code>Let</code> starts with a capital <code>L</code>, as <code>let</code> is a JS keyword. With the update, every context generating <em>graph action</em> has a callback function that can be used explicitly without a let.</p>
+<pre class="hljs"><code><div><span class="hljs-comment">// equivalent to the first flow method above</span>
+Graph.addNode({...}, graph, (newNode, newGraph) =&gt; {
+  <span class="hljs-built_in">console</span>.log(newNode)
+  <span class="hljs-keyword">return</span> newGraph
+})
+</div></code></pre>
+<p>To create a function that creates context information one has to call the given context callback. A <em>graph action</em> could be defined like the following:</p>
+<pre class="hljs"><code><div><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> newGraphAction = curry(<span class="hljs-function">(<span class="hljs-params">data, graph, ...cbs</span>) =&gt;</span> {
+  <span class="hljs-keyword">const</span> cb = Graph.flowCallback(cbs)
+  <span class="hljs-keyword">const</span> [contextData, newGraph] = doStuff(data, graph)
+  <span class="hljs-keyword">return</span> cb(contextData, newGraph)
+})
+</div></code></pre>
+<p>There are a few important things to note:</p>
+<ol>
+<li>The <em>graph action</em> is a curried function. This is an absolute must! In some situations it is necessary to have a curreid function.</li>
+<li>The curried function gets an optional number of arguments <code>...cbs</code>. It is absolutely vital to the function to define the callback like this or otherwise it is not possible to call the <code>newGraphAction</code> without an callback (like a normal developer would hope to). The currying cannot be smart about the usage so we must...</li>
+<li>The callback function is extracted from the <code>cbs</code> array via <code>Graph.flowCallback</code>. This is also an absolute must, some methods rely on a special treatment of callbacks (e.g. for error handling, so we know when you forget to call a vital callback).</li>
+<li>Call the callback! The callback must always return a graph and it always takes exactly two arguments, the context and the graph. Not more, not less (well there is the possibility to pass an callback as an optional parameter after the graph, but that is only interesting in very few cases.. e.g. sound error handling).</li>
+</ol>
+<p>In future it is possible that a special function for defining graph actions will be added to the Graph API to remove those <strong>very possible</strong> pitfalls (Yup I tripped a few times into those pitfalls and it cost me bit of time to get used to it).</p>
+<p>Besides the new let function there are a few other new functions that could help reduce complexity in the end. One is the <code>Graph.sequential</code> function that gets a list of <em>graph actions</em> with contexts and every function in the sequence that produces a context will hand this (and the new graph) to the next function in the sequence. Now we can build really fancy functions.</p>
+<pre class="hljs"><code><div>Graph.sequential([Graph.addNode({...}), Graph.removeNode])(Graph.empty())
+</div></code></pre>
+<p>This adds a node and removes it immediately afterwards. Note that the first function in the sequence is special as it will not get context information (<code>Graph.addNode: Node x Graph → Graph</code>). (This could be a problem, when designing TypeScript typings, but it would be possible to do <code>sequential(fn1, [fns...])</code>).</p>
+<p>Another new function is <code>distribute</code> which simply distributes a value over multiple functions and then uses another method to call the functions like for example <code>sequential</code>. This function still produces some headaches as it does not play nice with anything. The following snippet will demonstrate its usage.</p>
+<pre class="hljs"><code><div><span class="hljs-keyword">const</span> distSeq = Graph.distribute(Graph.sequential)
+<span class="hljs-comment">// take a subset of nodes and turn it into a lambda function</span>
+<span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> replaceByCall = curry(<span class="hljs-function">(<span class="hljs-params">subset, graph</span>) =&gt;</span>
+  convertToLambda(subset, graph, distSeq([createInputPartials, ternaryPack(createCall)])))
+</div></code></pre>
+<p>In this example we get a subset of nodes and create a lambda function out of them using <code>convertToLambda</code>. After this the lambda node floats in the graph with no connections to the outside world. We use <code>createInputPartials: LambdaContext x Graph → Graph</code> to use the context information from <code>convertToLambda</code> and create for every input to the <code>subset</code> an partial application. The <code>distribute</code> handles passing the context to <code>createInputPartials</code>. The <code>sequential</code> function then calls the first method in the list. The <code>createInputPartials</code> function now wants to pass its context information (i.e. the last partial that resolved the last input) to the next call via sequential, but distribute already passed its information to <code>createCall</code>. That's a bummer.. we cannot pass both information unless we can. And <code>createCall</code> exactly awaits two information, <strong>but</strong> (and this is an important bold-face <strong>but</strong>) we must have the following signature for the <code>createCall</code> function: <code>Context x Graph → Graph</code>. This is the least headachy solution. So <code>createCall</code> is defined as:</p>
+<pre class="hljs"><code><div><span class="hljs-keyword">const</span> createCall = <span class="hljs-function">(<span class="hljs-params">[context, fnNode], graph</span>) =&gt;</span>
+  ...
+</div></code></pre>
+<p>The first parameter is an array with the <code>context</code> we get from <code>convertToLambda</code> and the <code>fnNode</code> from <code>createInputPartials</code> (which can be the lambda function if the lambda function is a thunk / nullary). Now... the <code>distribute</code> would apply one argument and the <code>sequential</code> would apply two arguments, but <code>createCall</code> only accepts two arguments (and only should accept two arguments). That is why we used <code>ternaryPack</code> in the <code>distribute</code> example above. The <code>ternaryPack</code> takes the three arguments and bundles the first two arguments into an array.</p>
+<p>So why not simply allow for 3 arguments. One key problem was the partitioning into useful functions. <code>replaceByCall</code> is not defined as above, but uses <code>replaceByThunk</code> like this:</p>
+<pre class="hljs"><code><div><span class="hljs-keyword">export</span> <span class="hljs-keyword">const</span> replaceByCall = curry(<span class="hljs-function">(<span class="hljs-params">subset, graph</span>) =&gt;</span>
+  replaceByThunk(subset, graph, createCall))
+</div></code></pre>
+<p>The third argument to <code>replaceByThunk</code> is the callback (after <code>replaceByThunk</code> is finished). Unfortunately calling replaceByThunk without a callback (which is possible) would yield the default callback (via <code>Graph.flowCallback</code>) and that has 2 arguments. Together with the currying of optional and non-optional arguments a lot of (error prone) logic would be necessary to accommodate for those ternary functions.</p>
+<h3>Basic rewriting</h3>
+<p>A few common rewriting rules are gathered in graphtools. This is partly due to the fact that those need internal methods of graphtools that are not exported at the moment. The newly exported <code>addNodeWithID</code> could change this. One example is the <code>includePredecessor</code> function that must ensure, that the ID of the predecessor does not change when embedding it in the compound and removing it from the parent node. The change to <code>addNodeWithID</code> is rather recent (since <a href="https://github.com/BuggyOrg/graphtools/commit/cd9191a5b98dd669698bc82ebac1d126342cf24b">cd9191a5b9...</a>). Major updates were rewrite functions that allow to create compound out of subsets of nodes via <code>compoundify</code>. Methods like <code>convertToLambda</code> use these methods at their core. The newly exported method <code>replaceByCall</code> is probably rather uninteresting as adding additional partials and calls makes programs not more efficient, but <code>replaceByThunk</code> is vital for the implementations of ifs in recursive nodes. See changes in <em>Rewrite-Toolchain</em>.</p>
+<h3>Algorithm</h3>
+<p><strong>Topological Sort</strong></p>
+<p>The topological sort got a minor upgrade to enable easier debugging. When it finds a loop it is possible to print the corresponding loop onto the terminal. It currently prints a dot-file that can be visualized with graphviz. Simply activate <code>DEBUG=debug-graph</code> to see the graph.</p>
+<p><strong>Lowest Common Ancestor</strong></p>
+<p>A new algorithm is the lowest-common-ancestor (LCA). Using the algorithm of Bender et al. 2005 (doi:<a href="https://dx.doi.org/10.1016%2Fj.jalgor.2005.08.001">10.1016/j.jalgor.2005.08.001</a>). One important notion of our implementation is that we only search inside the current compound for the lowest-common-ancestor. We probably never need more than that, and if we don't want to be restricted by compound borders <code>decompoundify</code> will do the work. For recursive nodes the semantics differ and simply breaking out of an recursive node will probably not do what is intended. LCA is currently rather slow, Benders algorithm can be improved by a lot, but there are other changes to come that could improve the performance significantly.</p>
+<p><strong>Deep Predecessors Search</strong></p>
+<p>Accompanying LCA are a few <em>deep</em> predecessor methods that use predicate functions or an array of nodes to determine when to stop looking for further predecessors. It will return all nodes in between. These functions are accessible via <code>Algorithm.predecessorsUntil(nodes, predicate, graph)</code> and <code>Algorithm.predecessorsUpTo(nodes, stopNodes, graph)</code>. The first method uses a predicate function to determine when to stop, the second one an array of nodes. Both functions either take one node/location or an array of those. An important caveat: When <code>nodes</code> contains a location identifying the input port of a node, the node will not be part of the result. If <code>nodes</code> contains a location identifying a node, the node will be part of the result.</p>
+<h3>Connections</h3>
+<p>In most situations looking for predecessors and successors is only interesting on the current hierarchy layer. Since <a href="https://github.com/BuggyOrg/graphtools/releases/tag/v0.4.0-pre.27">0.4.0-pre.27</a> the methods <code>Graph.predecessors</code> and <code>Graph.successors</code> will not go into compound nodes. There is an optional attribute on the function to re-enable going into compound nodes.</p>
+<pre class="hljs"><code><div>Graph.predecessors(node, graph) // will only look on the current layer
+Graph.predecessors(node, graph, true) // will also go into compounds
+
+Graph.successors(node, graph) // will only look on the current layer
+Graph.successors(node, graph, true) // will also go into compounds
+</div></code></pre>
+<p>This flag is only sensible when the first parameter to <code>predecessors</code> or <code>successors</code> is a node. If it is a port it is clear what its predecessors/successors are.</p>
+<center><img src="fac_port_node.svg" style="width: calc(50% - 40px); display: inline; margin-right: 20px"> <img src="fac_port_port.svg" style="width: calc(50% - 40px); display: inline; margin-left: 20px"></center>
+<h3>Current and future work</h3>
+<p><strong>Better error messages</strong></p>
+<p>The most important part right now is the implementation of sane safe-guards
+in the API functions. Error messages are mostly awful and usually don't
+help finding the errors. Most of this is part of the next iteration.</p>
+<p><strong>Performance improvements</strong></p>
+<p>Right now the performance is bad but usually not noticeable due to the small
+example sizes. This mostly due to the following (only guessing not based on data):</p>
+<ul>
+<li>Queries always go through every node and do not use acceleration
+structures. This affects nearly all methods in the API as all of them
+use location based queries. The performance gain for implementing those could
+be huge, but also could include a lot of logic to keep the acceleration
+structures up to date.</li>
+<li>All changes copy the graph. The functional design currently leads to
+lots of copies that are mostly unnecessary.</li>
+</ul>
+<p>This will probably change in a few month as there is a new BA that will
+look exactly at the performance of the graph implementation. Due to the monadic
+design it is probably possible to minimize the copying to a minimum (Applicative
+monads allow to put the side effect last and all in between operations can be
+done in-place). Start of the BA is probably in April.</p>
+<p><strong>Cleanup</strong></p>
+<p>The rewrite methods should probably be in another package. It is possible that
+they will soon move into another repository.</p>
+<p><strong>Reevaluate TypeScript Usage</strong></p>
+<p>It would greatly help if especially graphtools used types. This could decrease
+time to find errors by a lot. One problem is handling curried functions, we have
+to look into that.</p>
+<h2>Buggy-CLI</h2>
+<p>The Buggy-CLI got a major redesign in the last months. The goal is to decouple
+the CLI from the releases of all the other packages. The main goal for the
+CLI is to pipe the right data into the right tool to achieve the desired effect.</p>
+<p>The CLI is in an unfinished state and needs some of work to get on track.
+Currently it is based on a toolchain (which is predefined). The toolchain
+consists of tools that are essentially programs that take some input
+and produce some output. Like <em>Lisgy</em> that <em>consumes</em> <code>.clj</code> files and
+<em>produces</em> a portgraph. The toolchain definition is very rigid at
+the moment. All tools are defined inside the buggy-cli project
+(<code>src/toolchain.js</code>). There are three different types of tools that are
+supported.</p>
+<ol>
+<li>NPM packages that export a CLI. But only the first exported cli is used
+(well which is a random one as the <code>bin</code> field is a JSON object and has
+no inherent order. There is certainly room for improvement here ;) ).</li>
+<li>Hard coded JavaScript.</li>
+</ol>
+<p>Tools are stored as JS-objects that have the following form:</p>
+<pre class="hljs"><code><div>{
+  <span class="hljs-attr">"name"</span>: <span class="hljs-string">"..."</span>,
+  <span class="hljs-attr">"consumes"</span>: <span class="hljs-string">"&lt;input-type&gt;"</span>,
+  <span class="hljs-attr">"produces"</span>: <span class="hljs-string">"&lt;output-type&gt;"</span>,
+  <span class="hljs-attr">"module"</span>: <span class="hljs-string">"[only for NPM packages (type 1)]"</span>,
+  <span class="hljs-attr">"args"</span>: <span class="hljs-string">"[arguments for NPM package binaries (type 1)]"</span>,
+  <span class="hljs-attr">"activatedBy"</span>: <span class="hljs-string">"[only for input-tools determines whether this can parse the input]"</span>,
+  <span class="hljs-attr">"command"</span>: (input) =&gt; <span class="hljs-string">"[the hard coded javascript (type 2)... this must be a JS function]"</span>,
+  <span class="hljs-attr">"depends"</span>: [<span class="hljs-string">"&lt;other-tool&gt;"</span>]
+}
+</div></code></pre>
+<p>Buggy-CLI installs all NPM modules inside the users home directory. It also
+tries to find fitting versions (using graphtools versions that are compatible
+etc.). It will parse the input, select the correct tool (if any) to parse
+the input. After that it will find a possible chain of tools that generates the
+expected output format. After choosing all translator tools the CLI
+tries to fulfill all given constraints. This completes the toolchain. This
+toolchain is now used to transpile the input into the fitting output.</p>
+<h3>Current and future work</h3>
+<p>There are several important features that need more attention.</p>
+<p><strong>Not so rigid toolchain</strong></p>
+<p>The CLI tool is in itself rather powerful as it can create a toolchain that
+gets the output and which fulfills all constraints. But it is not possible
+to extend the toolchain without changing it in the Buggy-CLI repository.
+The toolchain is currently simply an array of tools handed to Buggy-CLI on start.
+It should be fairly simple to extend the array with further tools dynamically.
+One drawback is, that this restricts the usage of JS code as the only
+possibility to use JS code is to bundle everything into the <code>&quot;command&quot;</code> function
+or to crate a CLI that is called.</p>
+<p><strong>Use a JS API directly</strong></p>
+<p>There are currently two methods of defining a tool, via an CLI tool (registered
+in the NPM registry) and simple JS code. It would be interesting to use the
+API of those NPM packages directly to reduce startup time. Every CLI tool
+has to spawn a node instance, parse the command line arguments, parse
+the graph JSON, process it and then print a string representation of the result.
+The spawning, parsing and <code>stringify</code> part could be avoided completely. This
+would reduce the transpilation time by a lot.</p>
+<p><strong>More constraints</strong></p>
+<p>Buggy-CLI knows the <code>depends</code> constraint and thats all. The typesystem tool that
+adds constructors / destructors and other type-related functions must run
+before <code>resolve</code> but it would be strange to define a dependency relation
+in <code>resolve</code> on the typesystem as resolve can work without the typesystem itself.</p>
+<p><strong>Possibility for non NPM tools</strong></p>
+<p>It would be very handy, especially for debugging purposes, to use local
+versions of some packages to see if everything is performing well, before
+publishing the package.</p>
+<p><strong>Library host is broken</strong></p>
+<p>It is only possible to set the library host via</p>
+<p><strong>Updating the Cache</strong></p>
+<p>The CLI uses information from NPM to decide which tool to use. But
+those queries are not cheap and add up. That is why Buggy-CLI uses
+an internal cache. But this cache must be updated from time to time.
+Updating this cache is done via the command line parameter: <code>-u</code>
+but this parameter is not available in the API. It is possible to
+remove the cache or to hand the new cache-update provider.</p>
+<p><strong>Error messages are horrible</strong></p>
+<p>The error messages that Buggy-CLI produces are horrible. There should be a clear
+indication of which tool failed and why. We have to rely on the error message
+of the tool but it should be presented in a more readable way.</p>
+<h3>Discussion</h3>
+<p>A different approach to the current <code>activatedBy</code> was suggested
+by MM. Instead of selecting one way for the toolchain.</p>
+<h2>Typify</h2>
+<p>The typify tool takes a graph that has some type information and propagates those
+information to neighboring ports / nodes to replace all type variables and have
+a fully typed graph. It usually comes directly after resolving. Until
+now <em>Typify</em> knew only one type variable, namely <code>generic</code>. All other types
+were &quot;real&quot; types.</p>
+<h3>Active development</h3>
+<p><strong>Different Typenames</strong></p>
+<p>The goal of this is extending the <code>generic</code> typename to &quot;as many as you want&quot; typenames.
+They are assigned not by overwriting, but by an direct assignment. We will export special
+functions that allow getting the types for a port that respect those assignments.</p>
+<p><strong>Complex Types</strong></p>
+<p>Types like lists consist of more than a primitive type. A list in lisgy could look like this.</p>
+<pre class="hljs"><code><div>(<span class="hljs-name"><span class="hljs-builtin-name">deftype</span></span> (<span class="hljs-name">List</span> a) [NIL (<span class="hljs-name">Cons</span> a (<span class="hljs-name">List</span> a))])
+</div></code></pre>
+<p>Or as an object in the JSON graph.</p>
+<pre class="hljs"><code><div>{
+  <span class="hljs-attr">"typeDefinition"</span>: {
+    <span class="hljs-attr">"name"</span>: <span class="hljs-string">"or"</span>,
+    <span class="hljs-attr">"data"</span>: [
+      {
+        <span class="hljs-attr">"type"</span>: <span class="hljs-string">"NIL"</span>
+      },
+      {
+        <span class="hljs-attr">"name"</span>: <span class="hljs-string">"Cons"</span>,
+        <span class="hljs-attr">"data"</span>: [
+          {
+            <span class="hljs-attr">"type"</span>: <span class="hljs-string">"a"</span>
+          },
+          {
+            <span class="hljs-attr">"name"</span>: <span class="hljs-string">"List"</span>,
+            <span class="hljs-attr">"data"</span>: [
+              {
+                <span class="hljs-attr">"type"</span>: <span class="hljs-string">"a"</span>
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+</div></code></pre>
+<p>Those were added but not yet released as an NPM package. They will land in 0.1.6.</p>
+<h2>Typesystem</h2>
+<p>We added a new tool to our toolchain that creates necessary accessor functions and
+constructors / destructors to data types. This tool must run before resolve as it only
+generates components which get replaced where they are needed. That has the benefit of
+reducing the size of the output.</p>
+<p><strong>Constructors</strong></p>
+<p>For a type like the list type the <em>Typesystem</em> tool will generate a function that
+creates the type itself. For the following list type:</p>
+<pre class="hljs"><code><div>(<span class="hljs-name"><span class="hljs-builtin-name">deftype</span></span> Pair (<span class="hljs-name">StringPair</span> String String))
+</div></code></pre>
+<p>it will create a function <code>StringPair: String x String → StringPair ⊑ Pair</code>.
+You can use it simply in Lisgy</p>
+<pre class="hljs"><code><div>(<span class="hljs-name">StringPair</span> <span class="hljs-string">"Hello"</span> <span class="hljs-string">"World"</span>)
+</div></code></pre>
+<p><strong>Destructors</strong></p>
+<p>If you want to extract values out of a type you can use a destructor. Those
+are defined as <code>de-&lt;TypeName&gt;-&lt;ArgNumber&gt;</code> so the following example would
+yield <code>&quot;Hello&quot;</code>:</p>
+<pre class="hljs"><code><div>(<span class="hljs-name">de-StringPair-0</span> (<span class="hljs-name">StringPair</span> <span class="hljs-string">"Hello"</span> <span class="hljs-string">"World"</span>))
+(<span class="hljs-name">de-StringPair-1</span> (<span class="hljs-name">StringPair</span> <span class="hljs-string">"World"</span> <span class="hljs-string">"Hello"</span>))
+</div></code></pre>
+<h3>Current and future work</h3>
+<p><strong>Enable pattern matching</strong></p>
+<p>To eliminate the need for the <code>de-</code> names to extract values in types a
+pattern matching scheme would be added that could transform expressions like:</p>
+<pre class="hljs"><code><div>(<span class="hljs-name">match</span> sp (<span class="hljs-name">StringPair</span> a b) (<span class="hljs-name"><span class="hljs-builtin-name">concat</span></span> a b))
+</div></code></pre>
+<p>into:</p>
+<pre class="hljs"><code><div>(<span class="hljs-name"><span class="hljs-builtin-name">let</span></span> [a (<span class="hljs-name">de-StringPair-0</span> sp)
+      b (<span class="hljs-name">de-StringPair-1</span> sp)])
+</div></code></pre>
+<p>It is unclear how much Lisgy help is necessary to implement this.</p>
+<p><strong>Recursive data structures</strong></p>
+<p>Recursive data structures are nearly finished. This will probably
+be part of the next iteration. One missing feature is the &quot;join&quot; or
+the distinction between different specializations (like <code>NIL</code> and <code>Cons</code>
+in the list example above).</p>
+<h2>Lisgy</h2>
+<p>In the last few months Lisgy got a major rewrite. The parser is currently
+being rewritten to support better error messages with line and column numbers
+and a cleaner interface between parsing and graph generation.</p>
+<h3>Support for Types</h3>
+<p>Lisgy got support for defining types via <code>deftype</code></p>
+<h3>Current and future work</h3>
+<p><strong>Completing the transition to the new parser</strong></p>
+<p>The new parser is not yet part of lisgy but should.</p>
+<h2>Graphify</h2>
+<p>Graphify had no major changes in the past but would need
+a few updates.</p>
+<h3>Future work</h3>
+<p>A programming assignment created a few postprocessing tools
+that allow adding edges after layouting and adding labels
+to edges. One particular feature that is still not
+implemented is adding labels to ports.</p>
+<h2>Rewrite / Rewrite-Toolchain</h2>
+<p>Graph rewriting is a central part of Buggy. The <em>Rewrite</em> package
+got an API update in the last two weeks. Rules are now
+an object with at least the attributes: <code>matcher</code>,
+<code>generator</code> and <code>set</code>. Rules can have further attributes like
+the <code>name</code> of the rule. Another change is the use of
+<code>Graph.isomorph</code> for checking if the graph has changed due to some
+rewrite rule. A graph is isomorph if it has the same semantics
+but might differ in the IDs von nodes.</p>
+<p>A new repository, the <em>Rewrite-Toolchain</em> was added. The
+intention is to have a collection of rewrite rules that
+are added to the CLI toolchain. Those rules would need
+more information like constraints (e.g. after resolve,
+before typify). The API should export a toolchain that is loaded
+by Buggy-CLI in the best case.</p>
+<h3>Future work</h3>
+<p><strong>Performance Improvement</strong></p>
+<p>Checking if the graph changed is a bit much. Simply passing the
+information if any rule was applied should suffice. This could
+be done by changing the return value of <code>apply</code> to not only
+return the new graph, but also if a rule was applied and
+ideally what rule applied.</p>
+<h2>Codegen</h2>
+<p>The <em>Codegen</em> project replaces the old <em>Gogen</em> project. It not only creates
+go code, but also every other kind of programming language code. The code generation
+uses language definitions that each can contain code for atomics and some general
+templating functions plus helper functions. To reduce the complexity of those
+templates, <em>Codegen</em> supports multiple language definitions at once. Each language
+definition can extend or overwrite previous definitions. They also can define an
+activation function to ensure, that they only are active in certain conditions.
+One example could be, that each edge that has the flag <code>debug</code> set in their
+metaInformation should print all values that go over the edge. The easiest way
+of defining such a language extension is by creating an activation function
+that checks the <code>debug</code> value for every edge and if it is set, returns <code>true</code>.</p>
+<h3>Future and active work</h3>
+<p><strong>MT Parallel Code Generation</strong></p>
+<p>PU currently works on a system to enable parallel execution for Buggy programs.
+The system should automatically detect which parts are parallelizable and with the
+right language extension, the generated code will run parallel code. Due date is July 2017.</p>
+<p><strong>Support for Lambda Functions</strong></p>
+<p><em>Codegen</em> has no support for Lambda functions and their execution. This is necessary to
+implement <code>if</code> as <code>if</code> must not evaluate one of the input branches. This is done
+via lambda functions. Each input branch is converted into a thunk and the
+if node executes only the correct branch. This is currently under development and should
+be ready in the next iteration.</p>
+<p><strong>Support for Recursions</strong></p>
+<p>Recursions are not yet supported as they rely on a working <code>if</code> implementation. Without
+an <code>if</code> the recursion cannot stop. This is probably rather simple after the <code>if</code> works.</p>
+<p><strong>Support for Recursive Types</strong></p>
+<p><em>Codegen</em> already supports complex types, constructors and destructors. But it is
+unclear if those methods also word for recursive types like lists. It is possible that
+this will work without modifying anything. This depends on the <a href="#typesystem"><em>Typesystem</em> recursive
+datastructures</a>.</p>
+<h2>Coptify</h2>
+<p>A new project is <em>Coptify</em>. The semantic of an branching edge is that the data must
+be copied before the following processes can work with the data. This has the
+disadvantage, that we have to copy the data for every edge. <em>Coptify</em> analyzes the
+graph and according to the meta information of atomic nodes tries to minimize
+necessary copies. This project is in its early stages and there will be some updates
+in the upcoming iterations.</p>
+
+</body></html>
