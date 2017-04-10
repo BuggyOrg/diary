@@ -34,3 +34,37 @@ is updated (`g3`). In the first case the value stored at `key`
 is only `{b: 'v2'}` and the value for `a` is removed. In the
 second case (`g3`) the meta information is updated and the
 new value is `{a: 'v1', b: 'v2'}`.
+
+## thunkIf
+
+We added a new package in the last iteration, namely *thunkIf*.
+This package tackles the problem of a data flow driven if with
+recursive calls. It is impossible to calculate all data paths in a
+recursive node as those would require infinite computing power.
+Consider the factorial node:
+
+<center><img src="fac.svg"></center>
+
+The `fac` node is shown as a compound node and as a atomic node.
+In fact `fac` is a recursive implementation and the outer
+`fac` node is the definition of this node. The inner `fac` node
+(with a solid border) is like `recur` in Clojure. It calls the
+same definition of `fac`, but with the data stemming from inside the
+recursive call.
+
+This is a problem for the data flow interpretation. It is
+impossible to calculate all recursive levels (and unnecessary), we
+(usually) need only a finite number of recursions, but we cannot always
+statically decide how deep the recursion will go. To circumvent this
+*thunkIf* finds all `if` components, identifies the lowest common
+ancestor (LCA, [more on that](https://github.com/BuggyOrg/diary/blob/master/2017_03/1/10_03_2017.md#algorithm)) and takes all nodes in between the if and the LCA and bundles those inside a
+lambda function. This results in the following graph for our `fac` example.
+
+**TODO**
+
+### Improvements
+
+Always creating lambda functions creates a lot of overhead. Thus
+it would be nice to reduce the number of functions. E.g. we can
+simply use a normal `if` in all non-recursive cases. And for recursive cases
+it is possible to find cases where we can write a simple if instruction.
