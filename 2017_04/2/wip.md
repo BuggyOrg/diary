@@ -60,7 +60,7 @@ statically decide how deep the recursion will go. To circumvent this
 ancestor (LCA, [more on that](https://github.com/BuggyOrg/diary/blob/master/2017_03/1/10_03_2017.md#algorithm)) and takes all nodes in between the if and the LCA and bundles those inside a
 lambda function. This results in the following graph for our `fac` example.
 
-**TODO**
+<center><img src="facThunk.svg"></center>
 
 ### Improvements
 
